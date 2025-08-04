@@ -1,12 +1,13 @@
 import { Button } from "@/components/ui/button";
-import { RefreshCw, BarChart3 } from "lucide-react";
+import { RefreshCw, BarChart3, Trash2 } from "lucide-react";
 
 interface HeaderProps {
   onRefreshAll: () => void;
+  onClearCache?: () => void;
   isLoading: boolean;
 }
 
-export const Header = ({ onRefreshAll, isLoading }: HeaderProps) => {
+export const Header = ({ onRefreshAll, onClearCache, isLoading }: HeaderProps) => {
   return (
     <header className="border-b border-border/50 bg-card/50 backdrop-blur-sm">
       <div className="container mx-auto px-4 py-6">
@@ -25,14 +26,27 @@ export const Header = ({ onRefreshAll, isLoading }: HeaderProps) => {
             </div>
           </div>
           
-          <Button
-            onClick={onRefreshAll}
-            disabled={isLoading}
-            className="bg-primary hover:bg-primary/90 shadow-lg hover:shadow-primary/20"
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-            Atualizar Dados
-          </Button>
+          <div className="flex gap-2">
+            {onClearCache && (
+              <Button
+                variant="outline"
+                onClick={onClearCache}
+                disabled={isLoading}
+                className="border-destructive/20 text-destructive hover:bg-destructive/10"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Limpar Cache
+              </Button>
+            )}
+            <Button
+              onClick={onRefreshAll}
+              disabled={isLoading}
+              className="bg-primary hover:bg-primary/90 shadow-lg hover:shadow-primary/20"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              Atualizar Dados
+            </Button>
+          </div>
         </div>
       </div>
     </header>

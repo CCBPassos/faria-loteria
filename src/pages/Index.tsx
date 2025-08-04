@@ -5,13 +5,13 @@ import { useLotteryData } from "@/hooks/useLotteryData";
 import { LOTTERY_GAMES } from "@/types/lottery";
 
 const Index = () => {
-  const { data, loading, lastUpdate, refreshGame, refreshAll } = useLotteryData(LOTTERY_GAMES);
+  const { data, loading, lastUpdate, refreshGame, refreshAll, clearCache } = useLotteryData(LOTTERY_GAMES);
   
   const isAnyLoading = Object.values(loading).some(Boolean);
 
   return (
     <div className="min-h-screen bg-background">
-      <Header onRefreshAll={refreshAll} isLoading={isAnyLoading} />
+      <Header onRefreshAll={refreshAll} onClearCache={clearCache} isLoading={isAnyLoading} />
       
       <main className="container mx-auto px-4 py-8 space-y-8">
         <StatsOverview data={data} lastUpdate={lastUpdate} />
@@ -30,7 +30,7 @@ const Index = () => {
         
         <footer className="text-center py-8 border-t border-border/20">
           <p className="text-sm text-muted-foreground">
-            Dados simulados para demonstração. Em produção, seria integrado com APIs oficiais da CEF.
+            Dados reais obtidos via API da Caixa Econômica Federal. Cache local disponível para melhor performance.
           </p>
         </footer>
       </main>

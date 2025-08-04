@@ -1,95 +1,128 @@
 import { useState, useEffect } from 'react';
-import type { LotteryData, LotteryGame, NumberFrequency } from '@/types/lottery';
-
-// Simulated historical data for demonstration
-const generateMockData = (game: LotteryGame): NumberFrequency[] => {
-  const frequencies: NumberFrequency[] = [];
-  const totalDraws = 2500; // Simulated total number of draws
-  
-  for (let i = game.minNumber; i <= game.maxNumber; i++) {
-    // Create realistic frequency distribution with some numbers being more frequent
-    const baseFrequency = Math.floor(totalDraws * game.numbersPerGame / (game.maxNumber - game.minNumber + 1));
-    const variation = Math.random() * 0.4 - 0.2; // ±20% variation
-    const frequency = Math.max(1, Math.floor(baseFrequency * (1 + variation)));
-    
-    frequencies.push({
-      number: i,
-      frequency,
-      percentage: (frequency / totalDraws) * 100
-    });
-  }
-  
-  // Sort by frequency descending
-  return frequencies.sort((a, b) => b.frequency - a.frequency);
-};
-
-const generateSuggestions = (topNumbers: NumberFrequency[], game: LotteryGame): number[][] => {
-  const suggestions: number[][] = [];
-  const availableNumbers = topNumbers.slice(0, Math.min(20, topNumbers.length));
-  
-  for (let i = 0; i < 5; i++) {
-    const suggestion: number[] = [];
-    const usedNumbers = new Set<number>();
-    
-    // Use a mix of top numbers with some randomization
-    while (suggestion.length < game.numbersPerGame) {
-      const weightedIndex = Math.floor(Math.random() * Math.min(15, availableNumbers.length));
-      const number = availableNumbers[weightedIndex].number;
-      
-      if (!usedNumbers.has(number)) {
-        suggestion.push(number);
-        usedNumbers.add(number);
-      }
-    }
-    
-    suggestions.push(suggestion.sort((a, b) => a - b));
-  }
-  
-  return suggestions;
-};
+import type { LotteryData, LotteryGame } from '@/types/lottery';
+import { LoteriasApiService } from '@/services/loteriasApi';
+import { IndexedDbService } from '@/services/indexedDb';
+import { LotteryAnalysisService } from '@/services/lotteryAnalysis';
+import { useToast } from '@/hooks/use-toast';
 
 export const useLotteryData = (games: LotteryGame[]) => {
   const [data, setData] = useState<LotteryData>({});
   const [loading, setLoading] = useState<{ [key: string]: boolean }>({});
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const { toast } = useToast();
 
-  const loadGameData = async (game: LotteryGame) => {
+  const loadGameData = async (game: LotteryGame, forceRefresh = false) => {
     setLoading(prev => ({ ...prev, [game.id]: true }));
     
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1000));
-    
     try {
-      const topNumbers = generateMockData(game);
-      const suggestions = generateSuggestions(topNumbers, game);
+      // Verifica se deve atualizar o cache (24 horas de cache por padrão)
+      const shouldUpdate = forceRefresh || await IndexedDbService.shouldUpdateCache(game.id, 24);
+      
+      let results;
+      
+      if (shouldUpdate) {
+        // Busca dados da API
+        console.log(`Buscando dados da API para ${game.name}...`);
+        results = await LoteriasApiService.getAllResults(game.id);
+        
+        // Salva no cache
+        await IndexedDbService.saveResults(game.id, results);
+        
+        toast({
+          title: "Dados atualizados",
+          description: `${game.name}: ${results.length} sorteios carregados da API`,
+        });
+      } else {
+        // Usa dados do cache
+        console.log(`Usando dados do cache para ${game.name}...`);
+        results = await IndexedDbService.getResults(game.id);
+        
+        if (results.length === 0) {
+          // Se não há dados no cache, busca da API
+          results = await LoteriasApiService.getAllResults(game.id);
+          await IndexedDbService.saveResults(game.id, results);
+        }
+      }
+      
+      // Analisa os resultados
+      const analysis = LotteryAnalysisService.analyzeResults(results, game);
       
       setData(prev => ({
         ...prev,
-        [game.id]: {
-          topNumbers,
-          suggestions
-        }
+        [game.id]: analysis
       }));
+      
     } catch (error) {
-      console.error(`Error loading data for ${game.name}:`, error);
+      console.error(`Erro ao carregar dados para ${game.name}:`, error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao carregar dados",
+        description: `Não foi possível carregar os dados da ${game.name}. Verifique sua conexão.`,
+      });
+      
+      // Tenta usar dados do cache em caso de erro
+      try {
+        const cachedResults = await IndexedDbService.getResults(game.id);
+        if (cachedResults.length > 0) {
+          const analysis = LotteryAnalysisService.analyzeResults(cachedResults, game);
+          setData(prev => ({
+            ...prev,
+            [game.id]: analysis
+          }));
+          
+          toast({
+            title: "Usando dados do cache",
+            description: `Carregados ${cachedResults.length} sorteios salvos localmente para ${game.name}`,
+          });
+        }
+      } catch (cacheError) {
+        console.error('Erro ao acessar cache:', cacheError);
+      }
     } finally {
       setLoading(prev => ({ ...prev, [game.id]: false }));
     }
   };
 
   const refreshGame = (game: LotteryGame) => {
-    loadGameData(game);
+    loadGameData(game, true); // Force refresh
     setLastUpdate(new Date());
   };
 
   const refreshAll = () => {
-    games.forEach(game => loadGameData(game));
+    games.forEach(game => loadGameData(game, true)); // Force refresh
     setLastUpdate(new Date());
   };
 
+  const clearCache = async () => {
+    try {
+      await IndexedDbService.clearCache();
+      toast({
+        title: "Cache limpo",
+        description: "Todos os dados salvos localmente foram removidos",
+      });
+      
+      // Recarrega todos os jogos
+      games.forEach(game => loadGameData(game, true));
+    } catch (error) {
+      console.error('Erro ao limpar cache:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro",
+        description: "Não foi possível limpar o cache",
+      });
+    }
+  };
+
   useEffect(() => {
-    // Load initial data for all games
-    games.forEach(game => loadGameData(game));
+    // Inicializa o banco de dados
+    IndexedDbService.initDatabase().then(() => {
+      // Carrega dados iniciais para todos os jogos
+      games.forEach(game => loadGameData(game));
+    }).catch(error => {
+      console.error('Erro ao inicializar banco de dados:', error);
+      // Se falhar, tenta carregar diretamente da API
+      games.forEach(game => loadGameData(game, true));
+    });
   }, [games]);
 
   return {
@@ -97,6 +130,7 @@ export const useLotteryData = (games: LotteryGame[]) => {
     loading,
     lastUpdate,
     refreshGame,
-    refreshAll
+    refreshAll,
+    clearCache
   };
 };
