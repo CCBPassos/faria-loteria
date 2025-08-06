@@ -120,6 +120,24 @@
   }
 }
 
+/* Otimizações mobile para scanner QR */
+@media (max-width: 768px) {
+  .qr-scanner-container {
+    height: 250px !important;
+  }
+  
+  /* Melhorar contraste em dispositivos móveis */
+  .qr-overlay {
+    background: rgba(0, 0, 0, 0.5);
+  }
+  
+  /* Otimizar toque em dispositivos móveis */
+  .mobile-touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
 @layer base {
   * {
     @apply border-border;

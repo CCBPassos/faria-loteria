@@ -131,7 +131,7 @@ export const QRBetScanner = ({ game, onBetScanned, onScanError }: QRBetScannerPr
                   facingMode: 'environment'
                 }}
                 allowMultiple={false}
-                scanDelay={300}
+                scanDelay={500}
                 formats={['qr_code']}
                 components={{
                   finder: false
@@ -139,18 +139,20 @@ export const QRBetScanner = ({ game, onBetScanned, onScanError }: QRBetScannerPr
                 styles={{
                   container: { 
                     width: '100%', 
-                    height: '300px',
+                    height: '280px',
                     borderRadius: '8px',
                     overflow: 'hidden'
                   }
                 }}
               />
               
-              {/* Overlay para destacar a área de scan */}
+              {/* Overlay otimizado para mobile */}
               <div className="absolute inset-0 pointer-events-none">
-                <div className="absolute inset-4 border-2 border-white border-dashed rounded-lg opacity-50" />
                 <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
                   <div className="w-48 h-48 border-2 border-primary rounded-lg" />
+                  <p className="text-center text-white text-sm mt-2 font-medium">
+                    Posicione o QR code aqui
+                  </p>
                 </div>
               </div>
             </div>

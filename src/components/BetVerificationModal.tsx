@@ -9,7 +9,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BetInputForm } from '@/components/BetInputForm';
 import { BetResultDisplay } from '@/components/BetResultDisplay';
 import { QRBetScanner } from '@/components/QRBetScanner';
+import { BetHistoryDisplay } from '@/components/BetHistoryDisplay';
 import { BetAnalysisService } from '@/services/betAnalysis';
+import { useBetVerification } from '@/hooks/useBetVerification';
 import type { LotteryGame } from '@/types/lottery';
 import type { BetTicket, BetResult } from '@/types/betting';
 
@@ -27,6 +29,7 @@ export const BetVerificationModal = ({
   latestDrawNumbers 
 }: BetVerificationModalProps) => {
   const [result, setResult] = useState<BetResult | null>(null);
+  const { betHistory, addBetResult, clearHistory, getStats, getHistoryByGame } = useBetVerification();
 
   // Números simulados para o último sorteio se não fornecidos
   const getDrawnNumbers = (): number[] => {
@@ -49,12 +52,14 @@ export const BetVerificationModal = ({
     const drawnNumbers = getDrawnNumbers();
     const analysisResult = BetAnalysisService.analyzeBet(ticket, drawnNumbers, game);
     setResult(analysisResult);
+    addBetResult(analysisResult);
   };
 
   const handleQRScanSuccess = (ticket: BetTicket) => {
     const drawnNumbers = getDrawnNumbers();
     const analysisResult = BetAnalysisService.analyzeBet(ticket, drawnNumbers, game);
     setResult(analysisResult);
+    addBetResult(analysisResult);
   };
 
   const handleQRScanError = (error: string) => {
@@ -71,6 +76,9 @@ export const BetVerificationModal = ({
     onClose();
   };
 
+  const gameHistory = getHistoryByGame(game.id);
+  const stats = getStats();
+
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -84,9 +92,12 @@ export const BetVerificationModal = ({
         <div className="mt-4">
           {!result ? (
             <Tabs defaultValue="manual" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="manual">Entrada Manual</TabsTrigger>
                 <TabsTrigger value="qr">Scanner QR</TabsTrigger>
+                <TabsTrigger value="history">
+                  Histórico ({gameHistory.length})
+                </TabsTrigger>
               </TabsList>
               
               <TabsContent value="manual" className="mt-4">
@@ -98,6 +109,14 @@ export const BetVerificationModal = ({
                   game={game} 
                   onBetScanned={handleQRScanSuccess}
                   onScanError={handleQRScanError}
+                />
+              </TabsContent>
+              
+              <TabsContent value="history" className="mt-4">
+                <BetHistoryDisplay 
+                  history={gameHistory}
+                  onClearHistory={clearHistory}
+                  stats={stats}
                 />
               </TabsContent>
             </Tabs>
