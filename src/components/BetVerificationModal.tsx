@@ -5,8 +5,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BetInputForm } from '@/components/BetInputForm';
 import { BetResultDisplay } from '@/components/BetResultDisplay';
+import { QRBetScanner } from '@/components/QRBetScanner';
 import { BetAnalysisService } from '@/services/betAnalysis';
 import type { LotteryGame } from '@/types/lottery';
 import type { BetTicket, BetResult } from '@/types/betting';
@@ -49,6 +51,17 @@ export const BetVerificationModal = ({
     setResult(analysisResult);
   };
 
+  const handleQRScanSuccess = (ticket: BetTicket) => {
+    const drawnNumbers = getDrawnNumbers();
+    const analysisResult = BetAnalysisService.analyzeBet(ticket, drawnNumbers, game);
+    setResult(analysisResult);
+  };
+
+  const handleQRScanError = (error: string) => {
+    console.error('Erro no scan:', error);
+    // O erro já é exibido no componente QRBetScanner
+  };
+
   const handleNewCheck = () => {
     setResult(null);
   };
@@ -70,7 +83,24 @@ export const BetVerificationModal = ({
 
         <div className="mt-4">
           {!result ? (
-            <BetInputForm game={game} onSubmit={handleBetSubmit} />
+            <Tabs defaultValue="manual" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="manual">Entrada Manual</TabsTrigger>
+                <TabsTrigger value="qr">Scanner QR</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="manual" className="mt-4">
+                <BetInputForm game={game} onSubmit={handleBetSubmit} />
+              </TabsContent>
+              
+              <TabsContent value="qr" className="mt-4">
+                <QRBetScanner 
+                  game={game} 
+                  onBetScanned={handleQRScanSuccess}
+                  onScanError={handleQRScanError}
+                />
+              </TabsContent>
+            </Tabs>
           ) : (
             <BetResultDisplay 
               result={result} 
