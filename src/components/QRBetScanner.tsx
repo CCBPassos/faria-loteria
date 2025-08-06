@@ -35,12 +35,20 @@ export const QRBetScanner = ({ game, onBetScanned, onScanError }: QRBetScannerPr
     }
   };
 
-  const handleScanResult = (result: string) => {
+  const handleScanResult = (result: any[]) => {
     try {
       setIsScanning(false);
       
+      if (!result || result.length === 0) {
+        setError('Nenhum QR code detectado. Tente novamente.');
+        onScanError('Nenhum QR code detectado');
+        return;
+      }
+
+      const qrData = result[0]?.rawValue || result[0];
+      
       // Tentar parsear o QR code
-      const ticket = BetAnalysisService.parseQRCode(result);
+      const ticket = BetAnalysisService.parseQRCode(qrData);
       
       if (!ticket) {
         setError('QR code inválido. Verifique se é um QR code de aposta válido.');
@@ -73,7 +81,12 @@ export const QRBetScanner = ({ game, onBetScanned, onScanError }: QRBetScannerPr
 
   const handleScanError = (err: Error) => {
     console.error('Erro no scanner:', err);
-    setError('Erro na câmera. Verifique se a câmera está funcionando.');
+    if (err.name === 'NotAllowedError') {
+      setCameraPermission('denied');
+      setError('Permissão da câmera negada.');
+    } else {
+      setError('Erro na câmera. Verifique se a câmera está funcionando.');
+    }
     setIsScanning(false);
   };
 
@@ -113,28 +126,22 @@ export const QRBetScanner = ({ game, onBetScanned, onScanError }: QRBetScannerPr
           <div className="space-y-4">
             <div className="relative">
               <Scanner
-                onScan={(result) => {
-                  if (result) {
-                    handleScanResult(result[0]?.rawValue || '');
-                  }
-                }}
-                onError={handleScanError}
+                onScan={handleScanResult}
                 constraints={{
-                  facingMode: 'environment',
-                  width: { ideal: 640 },
-                  height: { ideal: 480 }
+                  facingMode: 'environment'
+                }}
+                allowMultiple={false}
+                scanDelay={300}
+                formats={['qr_code']}
+                components={{
+                  finder: false
                 }}
                 styles={{
-                  container: {
-                    width: '100%',
+                  container: { 
+                    width: '100%', 
                     height: '300px',
                     borderRadius: '8px',
                     overflow: 'hidden'
-                  },
-                  video: {
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover'
                   }
                 }}
               />
