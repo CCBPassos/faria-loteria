@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, RefreshCw } from "lucide-react";
+import { TrendingUp, RefreshCw, Ticket } from "lucide-react";
+import { BetVerificationModal } from "./BetVerificationModal";
 import type { LotteryGame, LotteryResults } from "@/types/lottery";
 
 interface LotteryCardProps {
@@ -12,7 +14,19 @@ interface LotteryCardProps {
 }
 
 export const LotteryCard = ({ game, results, onRefresh, isLoading }: LotteryCardProps) => {
+  const [showVerification, setShowVerification] = useState(false);
+
+  // Simular números do último sorteio baseado nas sugestões
+  const latestDrawNumbers = results.suggestions[0] || [];
+
   return (
+    <>
+      <BetVerificationModal 
+        isOpen={showVerification}
+        onClose={() => setShowVerification(false)}
+        game={game}
+        latestDrawNumbers={latestDrawNumbers}
+      />
     <Card className="bg-gradient-to-br from-card to-secondary/50 border-border/50 backdrop-blur-sm">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
@@ -71,6 +85,18 @@ export const LotteryCard = ({ game, results, onRefresh, isLoading }: LotteryCard
           </div>
         </div>
 
+        {/* Bet Verification */}
+        <div>
+          <Button
+            onClick={() => setShowVerification(true)}
+            className="w-full mb-4"
+            variant="outline"
+          >
+            <Ticket className="h-4 w-4 mr-2" />
+            Verificar Minha Aposta
+          </Button>
+        </div>
+
         {/* Suggestions */}
         <div>
           <h3 className="font-semibold text-sm mb-3">Sugestões de Jogos</h3>
@@ -102,5 +128,6 @@ export const LotteryCard = ({ game, results, onRefresh, isLoading }: LotteryCard
         </div>
       </CardContent>
     </Card>
+    </>
   );
 };
