@@ -7,6 +7,15 @@ export interface BetTicket {
   betDate?: string;
 }
 
+export interface DrawInfo {
+  contestNumber: number;
+  date: string;
+  drawnNumbers: number[];
+  location: string;
+  accumulated: boolean;
+  estimatedPrize: number;
+}
+
 export interface GamePrize {
   matches: number;
   name: string;
@@ -21,6 +30,7 @@ export interface BetResult {
   prize?: GamePrize;
   isWinner: boolean;
   timestamp: string;
+  drawInfo: DrawInfo;
 }
 
 // Regras de premiação para cada modalidade

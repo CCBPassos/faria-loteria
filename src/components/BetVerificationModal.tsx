@@ -6,11 +6,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Loader2, AlertCircle } from 'lucide-react';
 import { BetInputForm } from '@/components/BetInputForm';
 import { BetResultDisplay } from '@/components/BetResultDisplay';
 import { QRBetScanner } from '@/components/QRBetScanner';
 import { BetHistoryDisplay } from '@/components/BetHistoryDisplay';
-import { BetAnalysisService } from '@/services/betAnalysis';
+import { BetVerificationService } from '@/services/betVerification';
 import { useBetVerification } from '@/hooks/useBetVerification';
 import type { LotteryGame } from '@/types/lottery';
 import type { BetTicket, BetResult } from '@/types/betting';
@@ -29,37 +31,52 @@ export const BetVerificationModal = ({
   latestDrawNumbers 
 }: BetVerificationModalProps) => {
   const [result, setResult] = useState<BetResult | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
   const { betHistory, addBetResult, clearHistory, getStats, getHistoryByGame } = useBetVerification();
 
-  // Números simulados para o último sorteio se não fornecidos
-  const getDrawnNumbers = (): number[] => {
-    if (latestDrawNumbers && latestDrawNumbers.length === game.numbersPerGame) {
-      return latestDrawNumbers;
-    }
-
-    // Gerar números aleatórios simulados para o último sorteio
-    const numbers: number[] = [];
-    while (numbers.length < game.numbersPerGame) {
-      const randomNum = Math.floor(Math.random() * (game.maxNumber - game.minNumber + 1)) + game.minNumber;
-      if (!numbers.includes(randomNum)) {
-        numbers.push(randomNum);
+  const handleBetSubmit = async (ticket: BetTicket) => {
+    setIsVerifying(true);
+    setVerificationError(null);
+    
+    try {
+      // Validar se a aposta é compatível com o jogo
+      if (!BetVerificationService.validateBetForGame(ticket, game)) {
+        throw new Error('Aposta não é compatível com o jogo selecionado');
       }
+
+      // Verificar aposta usando dados reais
+      const analysisResult = await BetVerificationService.verifyBet(ticket, game);
+      setResult(analysisResult);
+      addBetResult(analysisResult);
+    } catch (error) {
+      console.error('Erro na verificação:', error);
+      setVerificationError(error instanceof Error ? error.message : 'Erro desconhecido');
+    } finally {
+      setIsVerifying(false);
     }
-    return numbers.sort((a, b) => a - b);
   };
 
-  const handleBetSubmit = (ticket: BetTicket) => {
-    const drawnNumbers = getDrawnNumbers();
-    const analysisResult = BetAnalysisService.analyzeBet(ticket, drawnNumbers, game);
-    setResult(analysisResult);
-    addBetResult(analysisResult);
-  };
+  const handleQRScanSuccess = async (ticket: BetTicket) => {
+    setIsVerifying(true);
+    setVerificationError(null);
+    
+    try {
+      // Validar se a aposta é compatível com o jogo
+      if (!BetVerificationService.validateBetForGame(ticket, game)) {
+        throw new Error('Aposta do QR code não é compatível com o jogo selecionado');
+      }
 
-  const handleQRScanSuccess = (ticket: BetTicket) => {
-    const drawnNumbers = getDrawnNumbers();
-    const analysisResult = BetAnalysisService.analyzeBet(ticket, drawnNumbers, game);
-    setResult(analysisResult);
-    addBetResult(analysisResult);
+      // Verificar aposta usando dados reais
+      const analysisResult = await BetVerificationService.verifyBet(ticket, game);
+      setResult(analysisResult);
+      addBetResult(analysisResult);
+    } catch (error) {
+      console.error('Erro na verificação via QR:', error);
+      setVerificationError(error instanceof Error ? error.message : 'Erro desconhecido');
+    } finally {
+      setIsVerifying(false);
+    }
   };
 
   const handleQRScanError = (error: string) => {
@@ -69,10 +86,13 @@ export const BetVerificationModal = ({
 
   const handleNewCheck = () => {
     setResult(null);
+    setVerificationError(null);
   };
 
   const handleClose = () => {
     setResult(null);
+    setVerificationError(null);
+    setIsVerifying(false);
     onClose();
   };
 
@@ -90,12 +110,32 @@ export const BetVerificationModal = ({
         </DialogHeader>
 
         <div className="mt-4">
-          {!result ? (
+          {/* Loading state */}
+          {isVerifying && (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin mr-2" />
+              <span>Verificando aposta com dados oficiais...</span>
+            </div>
+          )}
+
+          {/* Error state */}
+          {verificationError && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{verificationError}</AlertDescription>
+            </Alert>
+          )}
+
+          {!result && !isVerifying ? (
             <Tabs defaultValue="manual" className="w-full">
               <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="manual">Entrada Manual</TabsTrigger>
-                <TabsTrigger value="qr">Scanner QR</TabsTrigger>
-                <TabsTrigger value="history">
+                <TabsTrigger value="manual" disabled={isVerifying}>
+                  Entrada Manual
+                </TabsTrigger>
+                <TabsTrigger value="qr" disabled={isVerifying}>
+                  Scanner QR
+                </TabsTrigger>
+                <TabsTrigger value="history" disabled={isVerifying}>
                   Histórico ({gameHistory.length})
                 </TabsTrigger>
               </TabsList>
@@ -120,13 +160,13 @@ export const BetVerificationModal = ({
                 />
               </TabsContent>
             </Tabs>
-          ) : (
+          ) : result ? (
             <BetResultDisplay 
               result={result} 
               game={game} 
               onNewCheck={handleNewCheck}
             />
-          )}
+          ) : null}
         </div>
       </DialogContent>
     </Dialog>

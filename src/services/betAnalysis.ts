@@ -1,18 +1,39 @@
-import type { BetTicket, BetResult, GamePrize } from '@/types/betting';
+import type { BetTicket, BetResult, GamePrize, DrawInfo } from '@/types/betting';
 import { PRIZE_RULES } from '@/types/betting';
 import type { LotteryGame } from '@/types/lottery';
 
 export class BetAnalysisService {
   /**
-   * Analisa uma aposta comparando com os números sorteados
+   * Analisa uma aposta comparando com os números sorteados (versão legada)
    */
   static analyzeBet(
     ticket: BetTicket,
     drawnNumbers: number[],
     game: LotteryGame
   ): BetResult {
+    // Criar DrawInfo simulado para compatibilidade
+    const drawInfo: DrawInfo = {
+      contestNumber: 0,
+      date: new Date().toISOString().split('T')[0],
+      drawnNumbers,
+      location: 'Simulado',
+      accumulated: false,
+      estimatedPrize: 0
+    };
+
+    return this.analyzeBetWithDrawInfo(ticket, drawInfo, game);
+  }
+
+  /**
+   * Analisa uma aposta usando informações completas do sorteio
+   */
+  static analyzeBetWithDrawInfo(
+    ticket: BetTicket,
+    drawInfo: DrawInfo,
+    game: LotteryGame
+  ): BetResult {
     const matchedNumbers = ticket.numbers.filter(num => 
-      drawnNumbers.includes(num)
+      drawInfo.drawnNumbers.includes(num)
     );
     
     const matchCount = matchedNumbers.length;
@@ -21,12 +42,13 @@ export class BetAnalysisService {
 
     return {
       ticket,
-      drawnNumbers,
+      drawnNumbers: drawInfo.drawnNumbers,
       matchedNumbers,
       matchCount,
       prize,
       isWinner,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      drawInfo
     };
   }
 

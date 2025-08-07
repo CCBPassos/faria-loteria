@@ -121,6 +121,37 @@ export const BetResultDisplay = ({ result, game, onNewCheck }: BetResultDisplayP
 
         <Separator />
 
+        {/* Informações do sorteio */}
+        <div className="bg-muted/50 p-4 rounded-lg space-y-2">
+          <h4 className="font-semibold">Informações do Sorteio:</h4>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <span className="font-medium">Concurso:</span>
+              <p>{result.drawInfo.contestNumber}</p>
+            </div>
+            <div>
+              <span className="font-medium">Data:</span>
+              <p>{new Date(result.drawInfo.date).toLocaleDateString('pt-BR')}</p>
+            </div>
+            <div>
+              <span className="font-medium">Local:</span>
+              <p>{result.drawInfo.location}</p>
+            </div>
+            <div>
+              <span className="font-medium">Acumulou:</span>
+              <p>{result.drawInfo.accumulated ? 'Sim' : 'Não'}</p>
+            </div>
+          </div>
+          {result.drawInfo.estimatedPrize > 0 && (
+            <div className="text-sm">
+              <span className="font-medium">Estimativa próximo concurso:</span>
+              <p className="text-green-600 font-semibold">
+                {formatCurrency(result.drawInfo.estimatedPrize)}
+              </p>
+            </div>
+          )}
+        </div>
+
         {/* Informações da aposta */}
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>

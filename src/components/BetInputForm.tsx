@@ -18,6 +18,7 @@ interface BetInputFormProps {
 export const BetInputForm = ({ game, onSubmit }: BetInputFormProps) => {
   const [inputValue, setInputValue] = useState('');
   const [selectedNumbers, setSelectedNumbers] = useState<number[]>([]);
+  const [drawNumber, setDrawNumber] = useState('');
   const [errors, setErrors] = useState<string[]>([]);
 
   const handleAddNumber = () => {
@@ -66,6 +67,7 @@ export const BetInputForm = ({ game, onSubmit }: BetInputFormProps) => {
       numbers: selectedNumbers,
       betType: 'simple',
       cost: 4.50, // Valor padrão simulado
+      drawNumber: drawNumber ? parseInt(drawNumber) : undefined,
       betDate: new Date().toISOString()
     };
 
@@ -87,6 +89,23 @@ export const BetInputForm = ({ game, onSubmit }: BetInputFormProps) => {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Campo opcional para número do concurso */}
+        <div>
+          <Label htmlFor="draw-number">
+            Número do concurso (opcional)
+          </Label>
+          <Input
+            id="draw-number"
+            type="number"
+            value={drawNumber}
+            onChange={(e) => setDrawNumber(e.target.value)}
+            placeholder="Ex: 2756 (deixe vazio para usar último sorteio)"
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            Se não informado, será usado o último sorteio disponível
+          </p>
+        </div>
+
         {/* Input para adicionar números */}
         <div className="flex gap-2">
           <div className="flex-1">
