@@ -1,13 +1,44 @@
 import { Header } from "@/components/Header";
 import { StatsOverview } from "@/components/StatsOverview";
 import { LotteryCard } from "@/components/LotteryCard";
+import { LoadingScreen } from "@/components/LoadingScreen";
 import { useLotteryData } from "@/hooks/useLotteryData";
 import { LOTTERY_GAMES } from "@/types/lottery";
+import { AlertCircle } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 const Index = () => {
-  const { data, loading, lastUpdate, refreshGame, refreshAll, clearCache } = useLotteryData(LOTTERY_GAMES);
+  const { data, loading, error, isInitialized, lastUpdate, refreshGame, refreshAll, clearCache } = useLotteryData(LOTTERY_GAMES);
   
   const isAnyLoading = Object.values(loading).some(Boolean);
+
+  // Show loading screen during initialization
+  if (!isInitialized && !error) {
+    return <LoadingScreen message="Iniciando aplicação..." />;
+  }
+
+  // Show error screen if critical error occurred
+  if (error && !isInitialized) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-destructive" />
+              <CardTitle>Erro na Aplicação</CardTitle>
+            </div>
+            <CardDescription>{error}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={() => window.location.reload()} className="w-full">
+              Recarregar Aplicação
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">

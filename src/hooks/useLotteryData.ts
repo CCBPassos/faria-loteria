@@ -8,6 +8,8 @@ import { useToast } from '@/hooks/use-toast';
 export const useLotteryData = (games: LotteryGame[]) => {
   const [data, setData] = useState<LotteryData>({});
   const [loading, setLoading] = useState<{ [key: string]: boolean }>({});
+  const [error, setError] = useState<string | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const { toast } = useToast();
 
@@ -114,20 +116,52 @@ export const useLotteryData = (games: LotteryGame[]) => {
   };
 
   useEffect(() => {
-    // Inicializa o banco de dados
-    IndexedDbService.initDatabase().then(() => {
-      // Carrega dados iniciais para todos os jogos
-      games.forEach(game => loadGameData(game));
-    }).catch(error => {
-      console.error('Erro ao inicializar banco de dados:', error);
-      // Se falhar, tenta carregar diretamente da API
-      games.forEach(game => loadGameData(game, true));
-    });
+    const initializeApp = async () => {
+      try {
+        setError(null);
+        console.log('Inicializando aplicação...');
+        
+        // Inicializa o banco de dados
+        await IndexedDbService.initDatabase();
+        console.log('IndexedDB inicializado com sucesso');
+        
+        // Carrega dados iniciais para todos os jogos
+        const loadPromises = games.map(game => loadGameData(game));
+        await Promise.allSettled(loadPromises);
+        
+        setIsInitialized(true);
+        console.log('Aplicação inicializada com sucesso');
+        
+      } catch (error) {
+        console.error('Erro crítico na inicialização:', error);
+        setError('Falha na inicialização da aplicação');
+        
+        // Fallback: tenta carregar apenas da API
+        try {
+          console.log('Tentando fallback para API...');
+          const fallbackPromises = games.map(game => loadGameData(game, true));
+          await Promise.allSettled(fallbackPromises);
+          setIsInitialized(true);
+          
+          toast({
+            title: "Modo limitado",
+            description: "Aplicação funcionando sem cache local",
+          });
+        } catch (fallbackError) {
+          console.error('Falha no fallback:', fallbackError);
+          setError('Não foi possível conectar com os serviços');
+        }
+      }
+    };
+
+    initializeApp();
   }, [games]);
 
   return {
     data,
     loading,
+    error,
+    isInitialized,
     lastUpdate,
     refreshGame,
     refreshAll,
