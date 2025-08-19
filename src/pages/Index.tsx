@@ -2,6 +2,7 @@ import { Header } from "@/components/Header";
 import { StatsOverview } from "@/components/StatsOverview";
 import { LotteryCard } from "@/components/LotteryCard";
 import { LoadingScreen } from "@/components/LoadingScreen";
+import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 import { useLotteryData } from "@/hooks/useLotteryData";
 import { LOTTERY_GAMES } from "@/types/lottery";
 import { AlertCircle } from "lucide-react";
@@ -61,10 +62,19 @@ const Index = () => {
         
         <footer className="text-center py-8 border-t border-border/20">
           <p className="text-sm text-muted-foreground">
-            Dados reais obtidos via API da Caixa Econômica Federal. Cache local disponível para melhor performance.
+            📊 Dados reais obtidos via API da Caixa Econômica Federal
+          </p>
+          <p className="text-xs text-muted-foreground mt-2">
+            🔄 Cache local disponível • Atualização automática a cada 24h
+          </p>
+          <p className="text-xs text-muted-foreground/75 mt-1">
+            Última atualização: {lastUpdate ? new Date(lastUpdate).toLocaleString('pt-BR') : 'Carregando...'}
           </p>
         </footer>
       </main>
+      
+      {/* PWA Install Prompt */}
+      <PWAInstallPrompt />
     </div>
   );
 };
