@@ -8,6 +8,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, AlertCircle } from 'lucide-react';
+import { ManualBetInput } from '@/components/ManualBetInput';
 import { BetInputForm } from '@/components/BetInputForm';
 import { BetResultDisplay } from '@/components/BetResultDisplay';
 import { QRBetScanner } from '@/components/QRBetScanner';
@@ -33,6 +34,8 @@ export const BetVerificationModal = ({
   const [result, setResult] = useState<BetResult | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationError, setVerificationError] = useState<string | null>(null);
+  const [showManualEntry, setShowManualEntry] = useState(false);
+  const [authCodeForManual, setAuthCodeForManual] = useState<string | null>(null);
   const { betHistory, addBetResult, clearHistory, getStats, getHistoryByGame } = useBetVerification();
 
   const handleBetSubmit = async (ticket: BetTicket) => {
@@ -81,18 +84,39 @@ export const BetVerificationModal = ({
 
   const handleQRScanError = (error: string) => {
     console.error('Erro no scan:', error);
-    // O erro já é exibido no componente QRBetScanner
+    // Se detectou código de autenticação, abrir entrada manual
+    if (error === 'Requer entrada manual') {
+      setShowManualEntry(true);
+    }
+  };
+
+  const handleManualEntry = () => {
+    setShowManualEntry(true);
+  };
+
+  const handleManualEntrySubmit = async (ticket: BetTicket) => {
+    setShowManualEntry(false);
+    await handleBetSubmit(ticket);
+  };
+
+  const handleManualEntryCancel = () => {
+    setShowManualEntry(false);
+    setAuthCodeForManual(null);
   };
 
   const handleNewCheck = () => {
     setResult(null);
     setVerificationError(null);
+    setShowManualEntry(false);
+    setAuthCodeForManual(null);
   };
 
   const handleClose = () => {
     setResult(null);
     setVerificationError(null);
     setIsVerifying(false);
+    setShowManualEntry(false);
+    setAuthCodeForManual(null);
     onClose();
   };
 
@@ -126,7 +150,7 @@ export const BetVerificationModal = ({
             </Alert>
           )}
 
-          {!result && !isVerifying ? (
+          {!result && !isVerifying && !showManualEntry ? (
             <Tabs defaultValue="manual" className="w-full">
               <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="manual" disabled={isVerifying}>
@@ -149,6 +173,7 @@ export const BetVerificationModal = ({
                   game={game} 
                   onBetScanned={handleQRScanSuccess}
                   onScanError={handleQRScanError}
+                  onManualEntry={handleManualEntry}
                 />
               </TabsContent>
               
@@ -160,6 +185,13 @@ export const BetVerificationModal = ({
                 />
               </TabsContent>
             </Tabs>
+          ) : showManualEntry ? (
+            <ManualBetInput
+              game={game}
+              initialTicket={{ authCode: authCodeForManual }}
+              onBetSubmit={handleManualEntrySubmit}
+              onCancel={handleManualEntryCancel}
+            />
           ) : result ? (
             <BetResultDisplay 
               result={result} 

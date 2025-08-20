@@ -5,6 +5,7 @@ export interface BetTicket {
   cost: number;
   drawNumber?: number;
   betDate?: string;
+  authCode?: string; // Código de autenticação do QR code da Caixa
 }
 
 export interface DrawInfo {

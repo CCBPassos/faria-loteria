@@ -3,7 +3,8 @@ import { Scanner } from '@yudiel/react-qr-scanner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Camera, CameraOff, AlertCircle, RotateCcw } from 'lucide-react';
+import { Camera, CameraOff, AlertCircle, RotateCcw, Edit } from 'lucide-react';
+import { CaixaQRParser } from '@/services/caixaQRParser';
 import { BetAnalysisService } from '@/services/betAnalysis';
 import type { LotteryGame } from '@/types/lottery';
 import type { BetTicket } from '@/types/betting';
@@ -12,12 +13,14 @@ interface QRBetScannerProps {
   game: LotteryGame;
   onBetScanned: (ticket: BetTicket) => void;
   onScanError: (error: string) => void;
+  onManualEntry?: () => void;
 }
 
-export const QRBetScanner = ({ game, onBetScanned, onScanError }: QRBetScannerProps) => {
+export const QRBetScanner = ({ game, onBetScanned, onScanError, onManualEntry }: QRBetScannerProps) => {
   const [isScanning, setIsScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cameraPermission, setCameraPermission] = useState<'granted' | 'denied' | 'prompt'>('prompt');
+  const [qrAnalysis, setQrAnalysis] = useState<string | null>(null);
 
   const handleStartScan = async () => {
     try {
@@ -46,13 +49,28 @@ export const QRBetScanner = ({ game, onBetScanned, onScanError }: QRBetScannerPr
       }
 
       const qrData = result[0]?.rawValue || result[0];
+      console.log('QR code detectado:', qrData);
       
-      // Tentar parsear o QR code
-      const ticket = BetAnalysisService.parseQRCode(qrData);
+      // Analisar o formato do QR code
+      const analysis = CaixaQRParser.analyzeQRCode(qrData);
+      setQrAnalysis(`Formato: ${analysis.format}, Confiança: ${Math.round(analysis.confidence * 100)}%`);
+      
+      // Tentar parsear com o novo parser
+      const ticket = CaixaQRParser.parseQRCode(qrData, game);
       
       if (!ticket) {
-        setError('QR code inválido. Verifique se é um QR code de aposta válido.');
-        onScanError('QR code inválido');
+        setError(`QR code não reconhecido. Formato detectado: ${analysis.format}. Use a entrada manual.`);
+        onScanError('QR code não reconhecido');
+        return;
+      }
+
+      // Se não tiver números, é um código de autenticação - solicitar entrada manual
+      if (!ticket.numbers || ticket.numbers.length === 0) {
+        setError('Código de autenticação detectado. Use a entrada manual para informar os números.');
+        onScanError('Requer entrada manual');
+        if (onManualEntry) {
+          onManualEntry();
+        }
         return;
       }
 
@@ -127,21 +145,26 @@ export const QRBetScanner = ({ game, onBetScanned, onScanError }: QRBetScannerPr
             <div className="relative">
               <Scanner
                 onScan={handleScanResult}
+                onError={handleScanError}
                 constraints={{
-                  facingMode: 'environment'
+                  facingMode: 'environment',
+                  width: { min: 640, ideal: 1280, max: 1920 },
+                  height: { min: 480, ideal: 720, max: 1080 }
                 }}
                 allowMultiple={false}
-                scanDelay={500}
-                formats={['qr_code']}
+                scanDelay={300}
+                formats={['qr_code', 'data_matrix', 'code_128', 'code_39']}
                 components={{
-                  finder: false
+                  finder: false,
+                  torch: true
                 }}
                 styles={{
                   container: { 
                     width: '100%', 
-                    height: '280px',
+                    height: '320px',
                     borderRadius: '8px',
-                    overflow: 'hidden'
+                    overflow: 'hidden',
+                    backgroundColor: '#000'
                   }
                 }}
               />
@@ -162,6 +185,12 @@ export const QRBetScanner = ({ game, onBetScanned, onScanError }: QRBetScannerPr
                 <CameraOff className="h-4 w-4 mr-2" />
                 Parar Scanner
               </Button>
+              {onManualEntry && (
+                <Button onClick={onManualEntry} variant="secondary" className="flex-1">
+                  <Edit className="h-4 w-4 mr-2" />
+                  Entrada Manual
+                </Button>
+              )}
             </div>
             
             <p className="text-sm text-muted-foreground text-center">
@@ -186,6 +215,15 @@ export const QRBetScanner = ({ game, onBetScanned, onScanError }: QRBetScannerPr
           </div>
         )}
 
+        {qrAnalysis && (
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              QR code analisado: {qrAnalysis}
+            </AlertDescription>
+          </Alert>
+        )}
+
         {error && (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
@@ -193,11 +231,18 @@ export const QRBetScanner = ({ game, onBetScanned, onScanError }: QRBetScannerPr
           </Alert>
         )}
 
-        {/* Informações sobre o formato do QR code */}
+        {/* Informações sobre formatos de QR code */}
         <div className="text-xs text-muted-foreground p-3 bg-muted rounded-md">
-          <p className="font-semibold mb-1">Formato esperado do QR code:</p>
-          <p>gameId|números|tipo|valor|concurso</p>
-          <p className="mt-1">Exemplo: mega-sena|01,15,23,32,44,55|simple|4.50|2500</p>
+          <p className="font-semibold mb-2">Formatos suportados:</p>
+          <ul className="space-y-1">
+            <li>• <strong>Códigos da Caixa:</strong> A23C-9612061BB99E1AD2B1-7</li>
+            <li>• <strong>URLs:</strong> loterias.caixa.gov.br/...</li>
+            <li>• <strong>Formato simulado:</strong> mega-sena|01,15,23|simple|4.50|2500</li>
+            <li>• <strong>JSON:</strong> {`{"gameId":"mega-sena","numbers":[1,15,23]}`}</li>
+          </ul>
+          <p className="mt-2 text-xs">
+            Para códigos de autenticação, use a entrada manual após o scan.
+          </p>
         </div>
       </CardContent>
     </Card>
