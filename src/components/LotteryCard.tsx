@@ -89,10 +89,11 @@ export const LotteryCard = ({ game, results, onRefresh, isLoading }: LotteryCard
         <div>
           <Button
             onClick={() => setShowVerification(true)}
-            className="w-full mb-4"
-            variant="outline"
+            size="lg"
+            className="w-full mb-4 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] border-0 font-semibold relative overflow-hidden group"
           >
-            <Ticket className="h-4 w-4 mr-2" />
+            <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+            <Ticket className="h-5 w-5 mr-2 group-hover:rotate-12 transition-transform duration-300" />
             Verificar Minha Aposta
           </Button>
         </div>
